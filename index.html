@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liquid · RR Risk Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #131313;
+    --off-white: #EEEEF9;
+    --lavender: #EEEEF9;
+    --mid: #2a2a2a;
+    --surface: #1c1c1c;
+    --border: rgba(238,238,249,0.1);
+    --border-strong: rgba(238,238,249,0.2);
+    --muted: rgba(238,238,249,0.45);
+    --green: #4ade80;
+    --red: #f87171;
+    --green-dim: rgba(74,222,128,0.12);
+    --red-dim: rgba(248,113,113,0.12);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 16px; }
+
+  body {
+    background: var(--black);
+    color: var(--off-white);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* background drop watermark */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -10vh;
+    right: -15vw;
+    width: 70vw;
+    height: 90vh;
+    background: var(--off-white);
+    opacity: 0.025;
+    clip-path: path('M 400 0 C 480 0 560 60 580 160 C 620 340 600 520 520 660 C 460 760 360 800 280 780 C 180 755 80 680 40 580 C -10 460 0 320 20 200 C 50 80 140 0 240 0 Z');
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page {
+    position: relative;
+    z-index: 1;
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* ─── Header ─── */
+  header {
+    padding: 48px 0 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+
+  .logo-drop {
+    width: 22px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+
+  .logo-text {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--off-white);
+    letter-spacing: -0.03em;
+  }
+
+  .header-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  /* ─── Hero ─── */
+  .hero {
+    padding-bottom: 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 36px;
+  }
+
+  .hero h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(32px, 7vw, 44px);
+    font-weight: 400;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+
+  .hero h1 em {
+    font-style: italic;
+    color: var(--muted);
+  }
+
+  .hero p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 380px;
+  }
+
+  /* ─── Cards / Sections ─── */
+  .section {
+    margin-bottom: 20px;
+  }
+
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ─── Input Grid ─── */
+  .input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .input-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    transition: border-color 0.2s;
+  }
+
+  .input-block:focus-within {
+    border-color: var(--border-strong);
+  }
+
+  .input-block label {
+    display: block;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .input-row-inner {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .input-prefix {
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .input-block input,
+  .input-block select {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--off-white);
+    font-family: 'DM Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+    width: 100%;
+    -moz-appearance: textfield;
+  }
+
+  .input-block input::-webkit-outer-spin-button,
+  .input-block input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  .input-block select {
+    font-size: 20px;
+    cursor: pointer;
+    -webkit-appearance: none;
+  }
+
+  .input-block select option {
+    background: var(--mid);
+    color: var(--off-white);
+  }
+
+  /* full-width input */
+  .input-block.full {
+    grid-column: 1 / -1;
+  }
+
+  /* ─── RR Selector ─── */
+  .rr-selector {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .rr-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .rr-btn:hover {
+    border-color: var(--border-strong);
+  }
+
+  .rr-btn.active {
+    background: var(--off-white);
+    border-color: var(--off-white);
+  }
+
+  .rr-btn .rr-num {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--off-white);
+    display: block;
+    transition: color 0.15s;
+  }
+
+  .rr-btn.active .rr-num {
+    color: var(--black);
+  }
+
+  .rr-btn .rr-sub {
+    font-size: 10px;
+    color: var(--muted);
+    display: block;
+    margin-top: 2px;
+    transition: color 0.15s;
+    letter-spacing: 0.04em;
+  }
+
+  .rr-btn.active .rr-sub {
+    color: rgba(19,19,19,0.55);
+  }
+
+  /* ─── Result Block ─── */
+  .result-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  .result-main {
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .result-cell {
+    padding: 20px 22px;
+    background: var(--surface);
+  }
+
+  .result-cell:first-child {
+    border-radius: 0;
+  }
+
+  .result-cell .rc-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .rc-label .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .rc-label.loss-label { color: var(--red); }
+  .rc-label.win-label  { color: var(--green); }
+
+  .result-cell .rc-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 28px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .rc-val.loss { color: var(--red); }
+  .rc-val.win  { color: var(--green); }
+
+  .result-cell .rc-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .result-footer {
+    padding: 16px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--black);
+  }
+
+  .result-footer .rf-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .result-footer .rf-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  /* ─── Position Size Block ─── */
+  .pos-result {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 20px;
+  }
+
+  .pos-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 18px;
+  }
+
+  .pos-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .pos-formula {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: rgba(238,238,249,0.2);
+    letter-spacing: 0.04em;
+  }
+
+  .pos-main {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .pos-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 36px;
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    color: var(--off-white);
+  }
+
+  .pos-note {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* progress bar */
+  .pos-bar-wrap {
+    margin-top: 14px;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .pos-bar {
+    height: 100%;
+    background: var(--off-white);
+    border-radius: 2px;
+    transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+    max-width: 100%;
+  }
+
+  /* ─── Scenario Table ─── */
+  .scenario-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+  }
+
+  .scenario-table th {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 0 10px;
+    text-align: left;
+    font-weight: 400;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .scenario-table th:not(:first-child) { text-align: right; }
+
+  .scenario-table td {
+    padding: 11px 0;
+    border-bottom: 1px solid rgba(238,238,249,0.05);
+    vertical-align: middle;
+  }
+
+  .scenario-table td:not(:first-child) { text-align: right; }
+
+  .scenario-table tr:last-child td { border-bottom: none; }
+
+  .scenario-table .col-rr { color: var(--muted); }
+
+  .col-win-r { color: var(--green); }
+  .col-loss-r { color: var(--red); }
+
+  .net-positive { color: var(--green); }
+  .net-negative { color: var(--red); }
+  .net-break    { color: var(--muted); }
+
+  .scenario-table .current-row td {
+    background: rgba(238,238,249,0.04);
+  }
+
+  .current-row td:first-child {
+    position: relative;
+  }
+
+  .current-row td:first-child::before {
+    content: '→';
+    position: absolute;
+    left: -16px;
+    color: var(--off-white);
+    font-size: 10px;
+  }
+
+  /* ─── Leverage note ─── */
+  .lev-note {
+    background: rgba(238,238,249,0.04);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 20px;
+  }
+
+  .lev-note p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .lev-note strong {
+    color: var(--off-white);
+    font-weight: 500;
+  }
+
+  /* ─── Share strip ─── */
+  .share-strip {
+    padding: 20px 0;
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .share-text {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .share-text strong {
+    color: var(--off-white);
+    display: block;
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+
+  .btn-share {
+    background: var(--off-white);
+    color: var(--black);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+  }
+
+  .btn-share:hover { opacity: 0.85; }
+  .btn-share:active { opacity: 0.7; }
+
+  /* ─── toast ─── */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: var(--off-white);
+    color: var(--black);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 10px 20px;
+    border-radius: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    z-index: 999;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ─── Footer ─── */
+  footer {
+    padding: 24px 0 0;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+  }
+
+  footer p {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: rgba(238,238,249,0.2);
+    letter-spacing: 0.05em;
+  }
+
+  .footer-logo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0.25;
+  }
+
+  .footer-logo svg {
+    width: 14px;
+    height: 16px;
+  }
+
+  .footer-logo span {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  /* ─── Animations ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero          { animation: fadeUp 0.5s ease both; }
+  .section:nth-of-type(1) { animation: fadeUp 0.5s 0.05s ease both; }
+  .section:nth-of-type(2) { animation: fadeUp 0.5s 0.1s ease both; }
+  .section:nth-of-type(3) { animation: fadeUp 0.5s 0.15s ease both; }
+  .section:nth-of-type(4) { animation: fadeUp 0.5s 0.2s ease both; }
+  .section:nth-of-type(5) { animation: fadeUp 0.5s 0.25s ease both; }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 480px) {
+    .input-grid { grid-template-columns: 1fr; }
+    .rr-selector { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .result-main { grid-template-columns: 1fr; }
+    .result-cell { border-bottom: 1px solid var(--border); }
+    .pos-val { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- Header -->
+  <header>
+    <a href="#" class="logo">
+      <svg class="logo-drop" viewBox="0 0 22 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M11 0C11 0 0 9.5 0 17C0 23.075 4.925 28 11 28C17.075 28 22 23.075 22 17C22 9.5 11 0Z" fill="#EEEEF9"/>
+      </svg>
+      <span class="logo-text">Liquid</span>
+    </a>
+    <span class="header-tag">RR Calculator</span>
+  </header>
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>know your risk<br><em>before you trade</em></h1>
+    <p>set your balance, define how much you're willing to lose per trade, pick your RR ratio — everything else follows.</p>
+  </div>
+
+  <!-- Section 1: Inputs -->
+  <div class="section">
+    <div class="section-label">your setup</div>
+
+    <div class="input-grid">
+      <div class="input-block">
+        <label>balance</label>
+        <div class="input-row-inner">
+          <span class="input-prefix">$</span>
+          <input type="number" id="balance" value="1000" min="1" oninput="update()">
+        </div>
+      </div>
+
+      <div class="input-block">
+        <label>risk per trade</label>
+        <div class="input-row-inner">
+          <input type="number" id="riskpct" value="1" min="0.1" max="10" step="0.1" oninput="update()">
+          <span class="input-prefix">%</span>
+        </div>
+      </div>
+
+      <div class="input-block">
+        <label>entry price</label>
+        <div class="input-row-inner">
+          <span class="input-prefix">$</span>
+          <input type="number" id="entry" value="100000" min="0.01" oninput="update()">
+        </div>
+      </div>
+
+      <div class="input-block">
+        <label>stop distance</label>
+        <div class="input-row-inner">
+          <input type="number" id="stopdist" value="1" min="0.01" max="99" step="0.1" oninput="update()">
+          <span class="input-prefix">%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: RR Ratio -->
+  <div class="section">
+    <div class="section-label">risk/reward ratio</div>
+
+    <div class="rr-selector">
+      <button class="rr-btn" data-rr="2" onclick="setRR(2)">
+        <span class="rr-num">1:2</span>
+        <span class="rr-sub">min</span>
+      </button>
+      <button class="rr-btn active" data-rr="3" onclick="setRR(3)">
+        <span class="rr-num">1:3</span>
+        <span class="rr-sub">standard</span>
+      </button>
+      <button class="rr-btn" data-rr="4" onclick="setRR(4)">
+        <span class="rr-num">1:4</span>
+        <span class="rr-sub">solid</span>
+      </button>
+      <button class="rr-btn" data-rr="5" onclick="setRR(5)">
+        <span class="rr-num">1:5</span>
+        <span class="rr-sub">ideal</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Section 3: Result -->
+  <div class="section">
+    <div class="section-label">your trade levels</div>
+
+    <div class="result-block">
+      <div class="result-main">
+        <div class="result-cell">
+          <div class="rc-label loss-label">
+            <span class="dot" style="background:var(--red)"></span>
+            max loss (1R)
+          </div>
+          <div class="rc-val loss" id="r1-display">$10.00</div>
+          <div class="rc-sub" id="stop-price-display">stop @ $99,000</div>
+        </div>
+        <div class="result-cell">
+          <div class="rc-label win-label">
+            <span class="dot" style="background:var(--green)"></span>
+            target (3R)
+          </div>
+          <div class="rc-val win" id="rtarget-display">$30.00</div>
+          <div class="rc-sub" id="tp-price-display">tp @ $103,000</div>
+        </div>
+      </div>
+      <div class="result-footer">
+        <span class="rf-label">min winrate to break even</span>
+        <span class="rf-val" id="minwinrate-display">25%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 4: Position Size -->
+  <div class="section">
+    <div class="section-label">position size</div>
+
+    <div class="pos-result">
+      <div class="pos-header">
+        <span class="pos-title">max position to open</span>
+        <span class="pos-formula" id="pos-formula-display">$10 ÷ 1% = $1,000</span>
+      </div>
+      <div class="pos-main">
+        <span class="pos-val" id="possize-display">$1,000</span>
+      </div>
+      <div class="pos-note" id="pos-note-display">1% of your balance — risk stays exactly $10</div>
+      <div class="pos-bar-wrap">
+        <div class="pos-bar" id="pos-bar" style="width: 10%"></div>
+      </div>
+    </div>
+
+    <div class="lev-note">
+      <p><strong>leverage doesn't define your risk.</strong> position size does. whether you use 1x, 5x, or 10x — if your position stays at <span id="possize-inline">$1,000</span> and stop is <span id="stopdist-inline">1%</span> away, you always lose exactly <span id="r1-inline">$10</span>. leverage only changes how much collateral you lock up.</p>
+    </div>
+  </div>
+
+  <!-- Section 5: Scenario Table -->
+  <div class="section">
+    <div class="section-label">10-trade scenarios</div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 22px;">
+      <table class="scenario-table" id="scenario-table">
+        <thead>
+          <tr>
+            <th>wins / 10</th>
+            <th>earned</th>
+            <th>lost</th>
+            <th>net</th>
+          </tr>
+        </thead>
+        <tbody id="scenario-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Share Strip -->
+  <div class="share-strip">
+    <div class="share-text">
+      <strong>share your setup</strong>
+      copy a link with your current parameters
+    </div>
+    <button class="btn-share" onclick="shareSetup()">copy link ↗</button>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <p>not financial advice — manage your own risk</p>
+    <div class="footer-logo">
+      <svg viewBox="0 0 22 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M11 0C11 0 0 9.5 0 17C0 23.075 4.925 28 11 28C17.075 28 22 23.075 22 17C22 9.5 11 0Z" fill="#EEEEF9"/>
+      </svg>
+      <span>Liquid</span>
+    </div>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast">link copied to clipboard</div>
+
+<script>
+  let currentRR = 3;
+
+  function fmt(n) {
+    if (n >= 10000) return '$' + Math.round(n).toLocaleString();
+    if (n >= 100)   return '$' + n.toFixed(0);
+    return '$' + n.toFixed(2);
+  }
+
+  function fmtPrice(n) {
+    return '$' + Math.round(n).toLocaleString();
+  }
+
+  function setRR(rr) {
+    currentRR = rr;
+    document.querySelectorAll('.rr-btn').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.rr) === rr);
+    });
+    update();
+  }
+
+  function update() {
+    const balance  = parseFloat(document.getElementById('balance').value)  || 1000;
+    const riskPct  = parseFloat(document.getElementById('riskpct').value)  || 1;
+    const entry    = parseFloat(document.getElementById('entry').value)    || 100000;
+    const stopDist = parseFloat(document.getElementById('stopdist').value) || 1;
+    const rr       = currentRR;
+
+    const r1       = balance * riskPct / 100;
+    const rTarget  = r1 * rr;
+    const posSize  = r1 / (stopDist / 100);
+    const stopPrice = entry * (1 - stopDist / 100);
+    const tpPrice   = entry + (entry * stopDist / 100) * rr;
+    const minWinRate = Math.ceil(100 / (rr + 1));
+
+    // Update displays
+    document.getElementById('r1-display').textContent = fmt(r1);
+    document.getElementById('rtarget-display').textContent = fmt(rTarget);
+    document.getElementById('rtarget-display').parentElement.querySelector('.rc-label').innerHTML =
+      `<span class="dot" style="background:var(--green)"></span>${rr}R target`;
+
+    document.getElementById('stop-price-display').textContent = `stop @ ${fmtPrice(stopPrice)}`;
+    document.getElementById('tp-price-display').textContent   = `tp @ ${fmtPrice(tpPrice)}`;
+    document.getElementById('minwinrate-display').textContent = minWinRate + '%';
+
+    document.getElementById('possize-display').textContent = fmt(posSize);
+    document.getElementById('pos-formula-display').textContent =
+      `${fmt(r1)} ÷ ${stopDist}% = ${fmt(posSize)}`;
+    document.getElementById('pos-note-display').textContent =
+      `${stopDist}% stop on ${fmt(posSize)} position = exactly ${fmt(r1)} at risk`;
+
+    // inline leverage note
+    document.getElementById('possize-inline').textContent = fmt(posSize);
+    document.getElementById('stopdist-inline').textContent = stopDist + '%';
+    document.getElementById('r1-inline').textContent = fmt(r1);
+
+    // progress bar: pos size as % of balance (capped at 100%)
+    const barWidth = Math.min((posSize / balance) * 100, 100);
+    document.getElementById('pos-bar').style.width = barWidth + '%';
+
+    // scenarios table
+    const tbody = document.getElementById('scenario-tbody');
+    tbody.innerHTML = '';
+    const rows = [3,4,5,6,7,8]; // wins out of 10
+    rows.forEach(wins => {
+      const losses = 10 - wins;
+      const earned = wins * rTarget;
+      const lost   = losses * r1;
+      const net    = earned - lost;
+      const isCurrent = wins === 5; // highlight midpoint row
+      const tr = document.createElement('tr');
+      if (isCurrent) tr.classList.add('current-row');
+      tr.innerHTML = `
+        <td>${wins} / 10</td>
+        <td class="col-win-r">${fmt(earned)}</td>
+        <td class="col-loss-r">−${fmt(lost)}</td>
+        <td class="${net > 0 ? 'net-positive' : net < 0 ? 'net-negative' : 'net-break'}">${net >= 0 ? '+' : ''}${fmt(net)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function shareSetup() {
+    const balance  = document.getElementById('balance').value;
+    const riskpct  = document.getElementById('riskpct').value;
+    const entry    = document.getElementById('entry').value;
+    const stopdist = document.getElementById('stopdist').value;
+    const url = new URL(window.location.href.split('?')[0]);
+    url.searchParams.set('b', balance);
+    url.searchParams.set('r', riskpct);
+    url.searchParams.set('e', entry);
+    url.searchParams.set('s', stopdist);
+    url.searchParams.set('rr', currentRR);
+    navigator.clipboard.writeText(url.toString()).then(() => showToast('link copied!')).catch(() => {
+      // fallback
+      showToast('copy the url from your browser');
+    });
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // Load from URL params
+  function loadFromURL() {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('b')) document.getElementById('balance').value  = p.get('b');
+    if (p.get('r')) document.getElementById('riskpct').value  = p.get('r');
+    if (p.get('e')) document.getElementById('entry').value    = p.get('e');
+    if (p.get('s')) document.getElementById('stopdist').value = p.get('s');
+    if (p.get('rr')) setRR(parseInt(p.get('rr')));
+  }
+
+  loadFromURL();
+  update();
+</script>
+</body>
+</html>
